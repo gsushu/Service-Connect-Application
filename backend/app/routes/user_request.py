@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from dependencies import get_db
 from models import *
@@ -9,7 +9,6 @@ from datetime import datetime
 router = APIRouter()
 
 class ServiceRequest(BaseModel):
-    user_id: int
     service_type: str = Field(..., example="Carpenter")
     description: str = Field(..., example="Fix a broken chair leg")
     location: str = Field(..., example="123 Main St, Springfield")
@@ -18,9 +17,12 @@ class ServiceRequest(BaseModel):
     additional_notes: Optional[str] = Field(None, example="I have pets at home, please be mindful")
 
 @router.post("/post_service")
-def create_service(service: ServiceRequest, db: Session = Depends(get_db)):
-    new_request = Request(
-        user_id=service.user_id,
+def create_service(request: Request, service: ServiceRequest, db: Session = Depends(get_db)):
+    user = request.session.get("user")
+    if not user:
+        return {"error": "User not logged in"}
+    new_request = sRequest(
+        user_id=user["id"],
         worker_id=None,
         service_id=1,
         user_location_id=1,

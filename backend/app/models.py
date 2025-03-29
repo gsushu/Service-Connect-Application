@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey
 from sqlalchemy.sql import func
 from config import Base
 
-class Request(Base):
+class sRequest(Base):
     __tablename__ = "requests"
 
     request_id = Column(Integer, primary_key=True, index=True)
@@ -17,6 +17,7 @@ class Request(Base):
 
 class Worker(Base):
     __tablename__ = "workers"
+
     worker_id = Column(Integer, primary_key=True, index=True)
     username = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, nullable=False)
@@ -27,6 +28,7 @@ class Worker(Base):
 
 class UserLocation(Base):
     __tablename__ = "user_locations"
+    
     location_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     address = Column(Text, nullable=False)

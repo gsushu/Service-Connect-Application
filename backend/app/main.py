@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from models import *
 from config import *
 
-from routes import hello, user_request
+from routes import hello, user_request, signup, authentication
 
 origins = [
     "*"
@@ -12,6 +13,11 @@ origins = [
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="adbms"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,3 +29,5 @@ app.add_middleware(
 
 app.include_router(hello.router)
 app.include_router(user_request.router)
+app.include_router(signup.router)
+app.include_router(authentication.router)
