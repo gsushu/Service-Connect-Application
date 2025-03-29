@@ -4,7 +4,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from models import *
 from config import *
 
-from routes import hello, user_request, signup, authentication
+from routes import hello, user_request, user_authentication, user_signup, user_view_requests
 
 origins = [
     "*"
@@ -29,5 +29,6 @@ app.add_middleware(
 
 app.include_router(hello.router)
 app.include_router(user_request.router)
-app.include_router(signup.router)
-app.include_router(authentication.router)
+app.include_router(user_signup.router)
+app.include_router(user_authentication.router)
+app.include_router(user_view_requests.router)

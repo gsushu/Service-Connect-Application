@@ -17,7 +17,7 @@ def login(user_auth: AuthDetails, request: Request, db: Session = Depends(get_db
         raise HTTPException(status_code=400, detail="User does not exist")
     if user_obj.password != user_auth.password:
         raise HTTPException(status_code=400, detail="Incorrect password")
-    request.session["user"] = {"username": user_obj.username, "id": user_obj.id}
+    request.session["user"] = {"username": user_obj.username, "id": user_obj.user_id}
     return {"message": "Login successful"}
 
 @router.get("/profile")
@@ -27,7 +27,6 @@ def get_profile(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return {"username": user["username"], "id": user["id"]}
 
-# Logout route
 @router.post("/logout")
 def logout(request: Request):
     request.session.clear()
