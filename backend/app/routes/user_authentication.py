@@ -6,6 +6,31 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
+class UserDetails(BaseModel):
+    username: str
+    email: str
+    mobile: str
+    password: str
+
+@router.post("/signup")
+def signup(user_data: UserDetails, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    user_data = User(
+        username = user_data.username,
+        email = user_data.email,
+        mobile = user_data.mobile,
+        password = user_data.password,
+    )
+
+    db.add(user_data)
+    db.commit()
+    db.refresh(user_data)
+
+    return {"message": f"{user_data.username}({user_data.user_id}) created successfully"}
+
 class AuthDetails(BaseModel):
     username: str
     password: str
@@ -18,7 +43,7 @@ def login(user_auth: AuthDetails, request: Request, db: Session = Depends(get_db
     if user_obj.password != user_auth.password:
         raise HTTPException(status_code=400, detail="Incorrect password")
     request.session["user"] = {"username": user_obj.username, "id": user_obj.user_id}
-    return {"message": "Login successful"}
+    return {"message": "user Login successful"}
 
 @router.get("/profile")
 def get_profile(request: Request):
@@ -29,5 +54,9 @@ def get_profile(request: Request):
 
 @router.post("/logout")
 def logout(request: Request):
-    request.session.clear()
-    return {"message": "Logged out successfully"}
+    if "user" not in request.session:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    del request.session["user"]
+
+    return {"message": "User Logged out successfully"}
