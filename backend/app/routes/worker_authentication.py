@@ -13,7 +13,7 @@ class WorkerSignUpDetails(BaseModel):
     mobile: str
     employee_number: str
 
-router.post("/signup")
+@router.post("/signup")
 def signup(worker_data: WorkerSignUpDetails, db: Session = Depends(get_db)):
     existing_worker = db.query(Worker).filter(
         (Worker.username == worker_data.username) | (Worker.email == worker_data.email)
@@ -39,7 +39,7 @@ class WorkerLoginDetails(BaseModel):
     username: str
     password: str
 
-router.post("/login")
+@router.post("/login")
 def login(worker_auth: WorkerLoginDetails, request: Request, db: Session = Depends(get_db)):
     worker_obj = db.query(Worker).filter(Worker.username == worker_auth.username).first()
 
