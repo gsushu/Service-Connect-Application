@@ -5,6 +5,7 @@ from models import *
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from routes.worker_notifications import notify_workers 
 
 router = APIRouter()
 
@@ -17,7 +18,7 @@ class ServiceRequest(BaseModel):
     additional_notes: Optional[str] = Field(None, example="I have pets at home, please be mindful")
 
 @router.post("/requests")
-def create_service(request: Request, service: ServiceRequest, db: Session = Depends(get_db)):
+async def create_service(request: Request, service: ServiceRequest, db: Session = Depends(get_db)):
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="User not logged in")
@@ -47,4 +48,16 @@ def create_service(request: Request, service: ServiceRequest, db: Session = Depe
     db.add(new_request)
     db.commit()
     db.refresh(new_request)
+
+    request_data = {
+        "request_id": new_request.request_id,
+        "user_id": new_request.user_id,
+        "service_id": new_request.service_id,
+        "user_location_id": new_request.user_location_id,
+        "description": new_request.description,
+        "status": new_request.status,
+        "created_at": str(new_request.created_at)  # Convert datetime to string
+    }
+    await notify_workers(request_data)
+
     return {"data": {"request_id": new_request.request_id}}

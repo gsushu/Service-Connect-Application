@@ -50,7 +50,7 @@ def login(worker_auth: WorkerLoginDetails, request: Request, db: Session = Depen
     
     request.session["worker"] = {"username": worker_obj.username, "id": worker_obj.worker_id}
     
-    return {"message": "Worker Login successful"}
+    return {"message": "Worker " + worker_obj.username + " Login successful"}
 
 @router.get("/profile")
 def get_profile(request: Request):
