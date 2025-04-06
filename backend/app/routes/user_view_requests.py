@@ -15,6 +15,7 @@ def getAllRequests(request: Request, db: Session = Depends(get_db)):
 
     return [{
         "request_id": r.request_id,
+        "worker_id": r.worker_id,
         "service_id": r.service_id,
         "description": r.description,
         "status": r.status,

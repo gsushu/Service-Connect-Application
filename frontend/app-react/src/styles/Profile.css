@@ -1,0 +1,33 @@
+.profile-container {
+  padding: 2rem;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.profile-container h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+  font-size: 1.75rem;
+  text-align: center;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+.profile-details {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #34495e;
+}
+
+.profile-details p {
+  margin: 0.5rem 0;
+}
+
+.profile-details strong {
+  color: #2c3e50;
+}

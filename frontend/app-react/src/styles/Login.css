@@ -1,0 +1,85 @@
+/* Reset some basic styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Apply a smooth, modern font */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* Container for the login form */
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Header style */
+.login-container h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+/* Style for the form */
+.login-container form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Label styles */
+.login-container label {
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+}
+
+/* Input field styles */
+.login-container input {
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.login-container input:focus {
+  border-color: #4caf50;
+  outline: none;
+}
+
+/* Button styles */
+.login-container button {
+  padding: 0.75rem;
+  background: #4caf50;
+  color: #fff;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.login-container button:hover {
+  background: #45a049;
+}
+
+/* Message style for errors or info */
+.login-container p {
+  margin-top: 1rem;
+  text-align: center;
+  color: #d32f2f;
+  font-size: 0.9rem;
+}

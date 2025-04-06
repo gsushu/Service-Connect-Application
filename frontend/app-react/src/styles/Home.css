@@ -1,0 +1,131 @@
+/* src/styles/Home.css */
+
+.home-container {
+  display: flex;
+  /* Make both columns match in height by stretching them to the container's height */
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 2rem;
+
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 1rem;
+
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f6f8; /* Light gray background behind the two cards */
+}
+
+/* Give both sections the same "card" styling */
+.left-section,
+.right-section {
+  flex: 1; /* Both columns can grow/shrink equally */
+  background: #fff; /* White background for a "card" look */
+  border-radius: 8px; /* Rounded corners */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column; /* So contents stack vertically */
+}
+
+/* If you want the left section narrower or wider, you can override flex-basis or width. */
+/* Example: .left-section { flex: 2; } for double width compared to right-section. */
+
+/* Greeting text spacing */
+.left-section h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+/* Button row under the greeting */
+.button-row {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.button-row button {
+  background-color: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.button-row button:hover {
+  background-color: #1565c0;
+  transform: translateY(-1px);
+}
+
+/* Requests list within the left column */
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+
+/* Request cards */
+.request-card {
+  background: #fff; /* same white, but it's inside another white container, so it blends */
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.request-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.request-id {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.status {
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  text-transform: capitalize;
+  font-size: 0.9rem;
+}
+
+/* Example statuses */
+.status.accepted {
+  background-color: #e0f8e9;
+  color: #2e7d32;
+}
+
+.status.pending {
+  background-color: #fff4e5;
+  color: #ff8f00;
+}
+
+/* Right section for the "Create Request" or other views */
+.view-container {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.view-container h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.view-container p {
+  margin-bottom: 1rem;
+  color: #555;
+}

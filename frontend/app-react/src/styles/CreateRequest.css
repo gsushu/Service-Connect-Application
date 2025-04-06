@@ -1,0 +1,54 @@
+/* src/styles/CreateRequest.css */
+
+.create-request-container {
+  background: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.create-request-container h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.create-request-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.create-request-form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  color: #555;
+}
+
+.create-request-form input,
+.create-request-form textarea {
+  margin-top: 0.25rem;
+  padding: 0.4rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.create-request-form button {
+  width: fit-content;
+  background-color: #43a047;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.create-request-form button:hover {
+  background-color: #388e3c;
+}
+
+.message {
+  margin-top: 1rem;
+  font-weight: 600;
+  color: #333;
+}

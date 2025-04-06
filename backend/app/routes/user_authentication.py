@@ -46,11 +46,19 @@ def login(user_auth: AuthDetails, request: Request, db: Session = Depends(get_db
     return {"message": "user Login successful"}
 
 @router.get("/profile")
-def get_profile(request: Request):
+def get_profile(request: Request, db: Session = Depends(get_db)):
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return {"username": user["username"], "id": user["id"]}
+    userDetails = db.query(User).filter(User.user_id == user["id"]).first()
+    if not userDetails:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "user_id": userDetails.user_id,
+        "username": userDetails.username,
+        "email": userDetails.email,
+        "mobile": userDetails.mobile,
+    }
 
 @router.post("/logout")
 def logout(request: Request):

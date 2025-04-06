@@ -13,7 +13,6 @@ class ServiceRequest(BaseModel):
     service_id: int = Field(..., example=1)
     description: str = Field(..., example="Fix a broken chair leg")
     location_id: int = Field(..., example=1)
-    scheduled_time: Optional[datetime] = Field(None, example="2025-03-15T10:00:00")
     urgency_level: Optional[str] = Field(None, example="High")
     additional_notes: Optional[str] = Field(None, example="I have pets at home, please be mindful")
 

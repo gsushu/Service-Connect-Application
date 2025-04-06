@@ -8,10 +8,6 @@ from routes import hello, user_request, user_authentication, user_view_requests,
 from routes import worker_authentication, worker_accept_request, worker_view_all_open_requests, worker_view_my_requests, worker_complete_cancel_request
 from routes import worker_notifications
 
-origins = [
-    "*"
-]
-
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
@@ -23,7 +19,7 @@ app.add_middleware(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
