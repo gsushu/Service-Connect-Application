@@ -7,7 +7,6 @@ from routes import hello, user_request, user_authentication, user_view_requests,
 from routes import worker_authentication, worker_view_all_open_requests, worker_view_my_requests, worker_complete_cancel_request, worker_quote_agree
 from routes import worker_notifications, admin_authentication, admin_management
 from routes import user_profile_management
-from fastapi_mcp import FastApiMCP
 import models
 import os
 import dotenv
@@ -56,28 +55,6 @@ app.include_router(worker_notifications.router) # Group worker routes
 
 app.include_router(admin_authentication.router)
 app.include_router(admin_management.router) # Add the admin management router
-
-
-# --- MCP Server Setup (Restricted Access) ---
-
-# Create a separate FastAPI app instance specifically for MCP
-mcp_target_app = FastAPI(title="Service Connect MCP Target")
-
-# Include ONLY the router(s) you want MCP to expose
-# Assuming user_request.router contains the 'create request' endpoint
-mcp_target_app.include_router(user_request.router)
-
-# Initialize FastApiMCP with the restricted app instance
-mcp = FastApiMCP(
-    mcp_target_app, # Pass the restricted app here
-    name="Service Request Creator MCP",
-    description="Exposes only the service request creation endpoint.",
-    base_url="http://localhost:8000", # Base URL of your main app
-)
-
-# Mount the MCP server endpoints onto the MAIN app
-mcp.mount(app=app) # Explicitly mount onto the main 'app'
-
 
 # --- Root Endpoint for Main App ---
 @app.get("/")

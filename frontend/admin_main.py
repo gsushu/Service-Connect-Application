@@ -49,9 +49,6 @@ def fetch_categories():
 
 # Function to display the admin dashboard
 def show_dashboard():
-    st.title("👑 Admin Dashboard")
-    st.markdown("---")
-
     # Get current admin info from session state for checks
     current_admin_info = st.session_state.get("user_info", {})
     current_admin_id = current_admin_info.get("id")

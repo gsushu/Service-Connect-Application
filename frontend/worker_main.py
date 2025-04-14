@@ -60,12 +60,8 @@ def fetch_service_categories() -> Dict[str, int]:
 
 # Function to display the worker dashboard
 def show_dashboard():
-    st.title("👷 Worker Dashboard")
     user_info = st.session_state.get("user_info", {})
     st.write(f"Welcome, {user_info.get('username', 'Worker')}!")
-    st.divider() # Use divider instead of markdown ---
-
-    # Fetch categories once for the dashboard
     service_categories_map = fetch_service_categories()
     # Create reverse map for displaying names from IDs
     category_id_to_name_map = {v: k for k, v in service_categories_map.items()}

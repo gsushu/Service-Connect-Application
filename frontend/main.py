@@ -3,6 +3,8 @@ from client import session  # Use the persistent session
 import requests
 import user_main  # Import user_main for dashboard access
 
+
+st.set_page_config(page_title="Service Connect", page_icon=":guardsman:", layout="wide", initial_sidebar_state="collapsed")
 # Initialize session state variables
 if "access_token" not in st.session_state:
     st.session_state.access_token = None

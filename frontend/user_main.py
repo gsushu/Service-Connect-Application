@@ -31,29 +31,10 @@ def format_datetime(dt_str):
 
 # Function to display the main user interface with tabs
 def show_dashboard(): # Renamed back from user_interface
-    st.title("User Portal")
-    # Note: Logout button is typically handled in the main app.py using columns for layout
-    # Example for main app.py:
-    # col1, col2 = st.columns([0.9, 0.1])
-    # with col1:
-    #     st.title("User Portal")
-    # with col2:
-    #     if st.button("Logout"):
-    #         # Logout logic here (clear session state, etc.)
-    #         st.rerun()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "📝 Create Request", "📋 My Requests", "👤 My Profile", "🛠️ Show Services"]) # Added Profile tab
-
-    with tab1:
-        st.header("Welcome to your Dashboard")
-        st.markdown("---")
-        st.write("Overview and summary information can be displayed here.")
-        # Add any relevant dashboard widgets or summaries later
+    tab2, tab3, tab4, tab5 = st.tabs(["📝 Create Request", "📋 My Requests", "👤 My Profile", "🛠️ Show Services"]) # Added Profile tab
 
     with tab2:
-        st.header("Create New Service Request")
-        st.markdown("---") # Add a horizontal rule for visual separation
-
         # Fetch available services for dropdown
         services = {}
         try:
@@ -132,8 +113,6 @@ def show_dashboard(): # Renamed back from user_interface
 
 
     with tab3:
-        st.header("My Service Requests")
-        st.markdown("---")
         try:
             response = session.get("http://localhost:8000/myrequests")  # Requires JWT
             response.raise_for_status() # Raise HTTPError for bad responses
@@ -266,19 +245,12 @@ def show_dashboard(): # Renamed back from user_interface
         except Exception as e:
             st.error(f"❌ Error processing service requests: {e}")
 
-    with tab4: # Content for the new Profile tab
-        # Call the profile function to display user profile details
+    with tab4:
         show_profile()
-        # Consider adding a button to refresh the profile data if needed
-        if st.button("Refresh Profile Data"):
-            show_profile()
-            st.success("Profile data refreshed!")
 
     with tab5:
-        # Consider adding a button to refresh the services data if needed
-        if st.button("Refresh Services Data"):
-            show_services()
-            st.success("Services data refreshed!")
+        show_services()
+
 
 
 # Keep the main guard if you want to run this file directly for testing
