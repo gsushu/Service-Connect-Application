@@ -4,10 +4,10 @@ import pandas as pd
 from datetime import datetime
 import requests
 import json
-from typing import Optional, Dict # Import Optional, Dict
-import asyncio # Import asyncio for potential async operations with websockets
-# Placeholder for a WebSocket client library (e.g., streamlit_ws_client or similar)
-# from streamlit_ws_client import ws_client
+from typing import Optional, Dict
+import asyncio
+# Import our new style utilities
+from utils.style_utils import apply_custom_css, add_role_based_styles, format_status_with_badge, display_welcome_header
 
 # Helper function to format datetime (same as admin_main)
 def format_datetime(dt_str):
@@ -29,30 +29,23 @@ def handle_api_error(e, action_msg="perform action"):
             error_detail = e.response.json().get('detail', e.response.text)
         except json.JSONDecodeError:
             error_detail = e.response.text
+    else:
+        error_detail = str(e)
     st.error(f"Failed to {action_msg}: {error_detail} (Status: {status_code})")
 
-# Function to apply color based on status
+# Function to apply color based on status - replaced by our CSS styling
 def style_status(status):
-    if status == 'pending':
-        return 'background-color: #FFF3CD; color: #856404;' # Yellowish
-    elif status == 'negotiating':
-        return 'background-color: #CCE5FF; color: #004085;' # Bluish
-    elif status == 'accepted':
-        return 'background-color: #D4EDDA; color: #155724;' # Greenish
-    elif status == 'inprogress':
-        return 'background-color: #D1ECF1; color: #0C5460;' # Cyanish
-    elif status == 'completed':
-        return 'background-color: #C3E6CB; color: #155724; font-weight: bold;' # Darker Green
-    elif status == 'cancelled':
-        return 'background-color: #F8D7DA; color: #721C24;' # Reddish
-    else:
-        return '' # Default style
+    return "" # The styling is now handled by CSS
 
 # Function to fetch service categories (similar to register.py)
-@st.cache_data(ttl=30) # Cache for 5 minutes
+@st.cache_data(ttl=30) # Cache for 30 seconds (reduced from 5 minutes for testing)
 def fetch_service_categories() -> Dict[str, int]:
     try:
         response = session.get("http://localhost:8000/service-categories")
+        if response.status_code == 401 or response.status_code == 403:
+            # Unauthorized - session may have expired
+            st.warning("Your session may have expired. Please log out and log back in.")
+            return {}
         response.raise_for_status()
         # Return name: id mapping
         return {cat['name']: cat['category_id'] for cat in response.json()}
@@ -69,9 +62,16 @@ def show_dashboard():
         # Return early to prevent showing the content
         return
 
+    # Apply our custom CSS styling
+    apply_custom_css()
+    add_role_based_styles("Worker")
+
     user_info = st.session_state.get("user_info", {})
     worker_id = user_info.get("id") # Get worker ID for notifications
-    st.write(f"Welcome, {user_info.get('username', 'Worker')}!")
+
+    # Display welcome header with username
+    display_welcome_header(user_info.get("username", "Worker"), "Worker")
+
     service_categories_map = fetch_service_categories()
     # Create reverse map for displaying names from IDs
     category_id_to_name_map = {v: k for k, v in service_categories_map.items()}
@@ -82,42 +82,6 @@ def show_dashboard():
     if 'new_notification' in st.session_state and st.session_state.new_notification:
         st.toast(st.session_state.new_notification, icon="🔔")
         st.session_state.new_notification = None # Clear notification after showing
-
-    # --- Example WebSocket Connection Logic (Placeholder) ---
-    # This needs a robust implementation (threading/asyncio).
-    # The browser should automatically send the session cookie if the WS
-    # connection is to the same origin (http://localhost:8000).
-    #
-    # async def connect_worker_websockets():
-    #     uri = "ws://localhost:8000/worker/notifications" # No token needed, uses session cookie
-    #     try:
-    #         # If using 'websockets' library, might need to manually pass cookies
-    #         # cookie_header = session.cookies.get_dict() # Get cookies from requests session
-    #         # headers = {'Cookie': '; '.join([f'{k}={v}' for k, v in cookie_header.items()])}
-    #         # async with websockets.connect(uri, extra_headers=headers) as websocket:
-    #         async with websockets.connect(uri) as websocket: # Try without manual cookies first
-    #             st.session_state.ws_connected = True
-    #             print(f"Worker {worker_id} WebSocket connected.")
-    #             while True:
-    #                 message = await websocket.recv()
-    #                 data = json.loads(message)
-    #                 st.session_state.new_notification = data.get('message', 'New notification received!')
-    #                 st.experimental_rerun()
-    #     except Exception as e:
-    #         print(f"Worker WebSocket error: {e}")
-    #         st.session_state.ws_connected = False
-    #     finally:
-    #         print(f"Worker WebSocket disconnected.")
-    #         st.session_state.ws_connected = False
-
-    # # Placeholder: Connection should ideally start automatically on login/page load
-    # if not st.session_state.get('ws_connected', False):
-    #      # Needs proper async/thread handling
-    #      # st.button("Connect Notifications", on_click=lambda: asyncio.run(connect_worker_websockets()))
-    #      pass
-
-    # --- End WebSocket Placeholder ---
-
 
     # Add "Create Service" tab
     tab_open, tab_active, tab_create_service, tab_history, tab_profile = st.tabs([

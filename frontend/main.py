@@ -1,7 +1,8 @@
 import streamlit as st
 from client import session  # Use the persistent session
-import requests
 import user_main  # Import user_main for dashboard access
+# Import our new style utilities
+from utils.style_utils import apply_custom_css, add_role_based_styles
 
 
 st.set_page_config(page_title="Service Connect", page_icon=":guardsman:", layout="wide", initial_sidebar_state="collapsed")
@@ -14,6 +15,9 @@ if "user_info" not in st.session_state:
     st.session_state.user_info = None
 if "page" not in st.session_state:
     st.session_state.page = "login"
+
+# Apply base styling
+apply_custom_css()
 
 # --- Define Logout Function ---
 def logout():
@@ -39,6 +43,9 @@ def validate_role_access(required_role):
 is_logged_in = st.session_state.get("role") is not None
 
 if is_logged_in: # Simplified check: if role is set, user is logged in
+    # Apply role-specific styling
+    add_role_based_styles(st.session_state.role)
+
     # Sidebar Navigation for Logged-in Users
     # Ensure user_info exists before trying to access it
     user_info = st.session_state.get("user_info", {})

@@ -4,6 +4,8 @@ import pandas as pd
 from datetime import datetime
 import json # Import json for better error parsing
 import requests
+# Import our new style utilities
+from utils.style_utils import apply_custom_css, add_role_based_styles, format_status_with_badge, display_welcome_header
 
 # Helper function for API error handling
 def handle_api_error(e, action_msg="perform action"):
@@ -55,12 +57,19 @@ def show_dashboard():
         # Return early to prevent showing the content
         return
 
+    # Apply our custom CSS styling
+    apply_custom_css()
+    add_role_based_styles("Admin")
+
     # Get current admin info from session state for checks
     current_admin_info = st.session_state.get("user_info", {})
     current_admin_id = current_admin_info.get("id")
 
-    tab_users, tab_workers, tab_requests, tab_services, tab_categories, tab_admins = st.tabs([ # Added tab_categories
-        "👥 Users", "👷 Workers", "📋 Requests", "🛠️ Services", "🏷️ Categories", "👑 Admins" # Added "🏷️ Categories"
+    # Display welcome header with username
+    display_welcome_header(current_admin_info.get("username", "Admin"), "Admin")
+
+    tab_users, tab_workers, tab_requests, tab_services, tab_categories, tab_admins = st.tabs([
+        "👥 Users", "👷 Workers", "📋 Requests", "🛠️ Services", "🏷️ Categories", "👑 Admins"
     ])
 
     # --- User Management Tab ---

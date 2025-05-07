@@ -14,7 +14,7 @@ class AdminLoginDetails(BaseModel):
     username: str
     password: str
 
-@router.post("/admin/login")
+@router.post("/login")  # Changed from "/admin/login" to "/login"
 async def admin_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     admin_obj = db.query(Admin).filter(Admin.username == form_data.username).first()
 
@@ -30,10 +30,17 @@ async def admin_login(request: Request, form_data: OAuth2PasswordRequestForm = D
     request.session["admin"] = {
         "id": admin_obj.admin_id,
         "username": admin_obj.username,
-        "role": "admin"  # Set role explicitly
+        "role": "Admin"  # Changed from lowercase "admin" to uppercase "Admin" to match frontend expectation
     }
 
-    return {"status": "success", "role": "admin", "username": admin_obj.username, "id": admin_obj.admin_id}
+    # Updated response format to include all expected fields
+    return {
+        "status": "success",
+        "role": "Admin",  # Changed from lowercase "admin" to uppercase "Admin" to match frontend expectation
+        "username": admin_obj.username,
+        "admin_id": admin_obj.admin_id,  # Added explicit admin_id field that frontend expects
+        "id": admin_obj.admin_id  # Keep id for backwards compatibility
+    }
 
 
 class AdminCreateDetails(BaseModel):

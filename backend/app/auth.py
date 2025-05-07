@@ -53,21 +53,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub") # Assuming 'sub' holds the username
-        user_id: int = payload.get("id")
-        if username is None or user_id is None:
+        username: str | None = payload.get("sub") # Assuming 'sub' holds the username
+        user_id: int | None = payload.get("id")
+        role: str | None = payload.get("role") # Extract role
+
+        if username is None or user_id is None or role is None: # Validate all expected fields
             raise credentials_exception
-        token_data = TokenData(username=username, user_id=user_id)
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.user_id == token_data.user_id).first()
+    user = db.query(User).filter(User.user_id == user_id).first()
     if user is None:
         raise credentials_exception
-    # You might want to return the user object directly
-    # return user
-    # Or return a dictionary/Pydantic model with user info
-    return {"username": user.username, "id": user.user_id}
+    # Return a dictionary that includes the role
+    return {"username": user.username, "id": user.user_id, "role": role}
 
 # --- Optional: Dependency for Optional Authentication ---
 async def get_current_user_optional(token: str | None = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -79,18 +78,17 @@ async def get_current_user_optional(token: str | None = Depends(oauth2_scheme), 
         return None
 
 # Role-based access control dependency functions
-def get_current_user_with_role_check(allowed_roles: list = ["user"]):
+def get_current_user_with_role_check(allowed_roles: list = ["User"]):  # Updated default to capitalized "User"
     """
     Dependency that checks if the current user has one of the allowed roles.
     Default is to only allow regular users.
     """
-    async def _get_user_with_role(request: Request):
-        # Get the user (this will raise HTTPException if not authenticated)
-        current_user = await get_current_user(request)
+    async def _get_user_with_role(current_user_payload: dict = Depends(get_current_user)):
+        # current_user_payload is the dictionary returned by get_current_user (e.g., JWT payload)
+        user_role = current_user_payload.get("role")
 
-        # Check if user has the required role
-        if "role" in current_user and current_user["role"] in allowed_roles:
-            return current_user
+        if user_role and user_role in allowed_roles:
+            return current_user_payload # Return the payload
 
         # Role not allowed
         raise HTTPException(
@@ -99,5 +97,34 @@ def get_current_user_with_role_check(allowed_roles: list = ["user"]):
         )
 
     return _get_user_with_role
+
+# Session authentication for Admin and Worker
+def verify_session(request: Request, required_role: str = None):
+    """
+    Helper function to verify session-based authentication
+    for Admin and Worker routes.
+    """
+    # Check for admin session
+    if required_role == "Admin":  # Capitalized role
+        admin_session = request.session.get("admin")
+        if not admin_session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated as admin"
+            )
+        return admin_session
+
+    # Check for worker session
+    if required_role == "Worker":  # Capitalized role
+        worker_session = request.session.get("worker")
+        if not worker_session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated as worker"
+            )
+        return worker_session
+
+    # If no specific role required, return None
+    return None
 
 # Example usage: Depends(get_current_user_with_role_check(["admin"]))

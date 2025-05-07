@@ -38,11 +38,19 @@ def signup(user_data: UserDetails, db: Session = Depends(get_db)):
 
     access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
-        data={"sub": new_user.username, "id": new_user.user_id},
+        data={"sub": new_user.username, "id": new_user.user_id, "role": "User"},  # Capitalize role
         expires_delta=access_token_expires
     )
 
-    return {"message": f"User {new_user.username} created successfully", "access_token": access_token, "token_type": "bearer"}
+    return {
+        "message": f"User {new_user.username} created successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": "User",  # Capitalize role
+        "username": new_user.username,
+        "user_id": new_user.user_id,  # Added explicit user_id field
+        "id": new_user.user_id  # Keep id for backwards compatibility
+    }
 
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -55,15 +63,22 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
     # Create the token with role information
     payload = {
+        "sub": user_obj.username,
         "id": user_obj.user_id,
-        "username": user_obj.username,
-        "role": "user"  # Set the role explicitly
+        "role": "User"  # Capitalize role for consistency
     }
 
     # Generate token
     access_token = create_access_token(data=payload)
 
-    return {"access_token": access_token, "token_type": "bearer", "role": "user", "username": user_obj.username, "id": user_obj.user_id}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": "User",  # Capitalize role for consistency
+        "username": user_obj.username,
+        "user_id": user_obj.user_id,  # Added explicit user_id field
+        "id": user_obj.user_id  # Keep id for backwards compatibility
+    }
 
 @router.get("/profile")
 def get_profile(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):

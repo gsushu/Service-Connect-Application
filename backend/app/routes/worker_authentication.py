@@ -94,31 +94,8 @@ class WorkerLoginDetails(BaseModel):
     username: str
     password: str
 
+# Keep only one login endpoint - the one that uses OAuth2PasswordRequestForm
 @router.post("/login")
-def login(worker_auth: WorkerLoginDetails, request: Request, db: Session = Depends(get_db)):
-    worker_obj = db.query(Worker).filter(Worker.username == worker_auth.username).first()
-
-    if not worker_obj:
-        raise HTTPException(status_code=400, detail="Worker does not exist")
-
-    # Use verify_password for comparison
-    if not verify_password(worker_auth.password, worker_obj.password):
-        raise HTTPException(status_code=400, detail="Incorrect password")
-
-    # Check if worker is approved
-    if worker_obj.status != WorkerStatus.approved:
-        raise HTTPException(status_code=403, detail="Worker account not approved yet.")
-
-    request.session["worker"] = {"username": worker_obj.username, "id": worker_obj.worker_id}
-
-    # Include username in the response JSON
-    return {
-        "message": "Worker " + worker_obj.username + " Login successful",
-        "worker_id": worker_obj.worker_id,
-        "username": worker_obj.username # Add username here
-    }
-
-@router.post("/worker/login")
 async def worker_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     worker = db.query(Worker).filter(Worker.username == form_data.username).first()
 
@@ -132,10 +109,16 @@ async def worker_login(request: Request, form_data: OAuth2PasswordRequestForm = 
     request.session["worker"] = {
         "id": worker.worker_id,
         "username": worker.username,
-        "role": "worker"  # Set role explicitly
+        "role": "Worker"  # Capitalized to match frontend expectations
     }
 
-    return {"status": "success", "role": "worker", "username": worker.username, "id": worker.worker_id}
+    return {
+        "status": "success",
+        "role": "Worker",  # Capitalized to match frontend expectations
+        "username": worker.username,
+        "worker_id": worker.worker_id,
+        "id": worker.worker_id  # Include both for consistency
+    }
 
 # --- Worker Profile Management ---
 
