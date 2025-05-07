@@ -7,6 +7,7 @@ from auth import get_password_hash, verify_password
 from typing import Optional, List # Import List
 from fastapi.responses import JSONResponse
 from fastapi import status
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/worker", tags=["Worker"])
 
@@ -116,6 +117,25 @@ def login(worker_auth: WorkerLoginDetails, request: Request, db: Session = Depen
         "worker_id": worker_obj.worker_id,
         "username": worker_obj.username # Add username here
     }
+
+@router.post("/worker/login")
+async def worker_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    worker = db.query(Worker).filter(Worker.username == form_data.username).first()
+
+    if not worker or not verify_password(form_data.password, worker.password):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    if worker.status != WorkerStatus.approved:
+        raise HTTPException(status_code=403, detail="Worker account not approved yet.")
+
+    # Create worker session
+    request.session["worker"] = {
+        "id": worker.worker_id,
+        "username": worker.username,
+        "role": "worker"  # Set role explicitly
+    }
+
+    return {"status": "success", "role": "worker", "username": worker.username, "id": worker.worker_id}
 
 # --- Worker Profile Management ---
 

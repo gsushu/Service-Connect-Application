@@ -6,6 +6,10 @@ import requests # Import requests for exception handling
 import json # Import json for error parsing
 from user_profile import show_profile # Import the profile function
 from user_services import show_services # Import the services function
+# Import asyncio for potential async operations with websockets
+# import asyncio
+# Placeholder for a WebSocket client library
+# import websockets
 
 # Helper function for API error handling (similar to worker_main)
 def handle_api_error(e, action_msg="perform action"):
@@ -31,6 +35,55 @@ def format_datetime(dt_str):
 
 # Function to display the main user interface with tabs
 def show_dashboard(): # Renamed back from user_interface
+    # Check if user has the correct role
+    if st.session_state.get("role") != "User":
+        st.error("Access denied: This page is only accessible to users.")
+        # Return early to prevent showing the content
+        return
+
+    user_info = st.session_state.get("user_info", {})
+    user_id = user_info.get("id")
+    access_token = st.session_state.get("access_token")
+
+    # --- Placeholder for WebSocket Connection ---
+    # Display toast notifications if any exist in session state
+    if 'new_notification' in st.session_state and st.session_state.new_notification:
+        st.toast(st.session_state.new_notification, icon="🔔")
+        st.session_state.new_notification = None # Clear notification after showing
+
+    # --- Example WebSocket Connection Logic (Placeholder) ---
+    # This needs a robust implementation, potentially using threads or asyncio
+    # managed carefully within Streamlit's execution model.
+    #
+    # async def connect_user_websockets(token):
+    #     uri = f"ws://localhost:8000/user/notifications?token={token}"
+    #     try:
+    #         async with websockets.connect(uri) as websocket:
+    #             st.session_state.ws_connected = True # Flag connection status
+    #             print(f"User {user_id} WebSocket connected.")
+    #             while True:
+    #                 message = await websocket.recv()
+    #                 data = json.loads(message)
+    #                 # IMPORTANT: Directly calling st.toast here might not work reliably
+    #                 # Instead, store the message and let Streamlit's main thread display it
+    #                 st.session_state.new_notification = data.get('message', 'New notification received!')
+    #                 st.experimental_rerun() # Rerun to display the toast
+    #     except Exception as e:
+    #         print(f"User WebSocket error: {e}")
+    #         st.session_state.ws_connected = False
+    #     finally:
+    #         print(f"User WebSocket disconnected.")
+    #         st.session_state.ws_connected = False
+
+    # # Button to initiate connection (for testing) or run automatically
+    # if access_token and not st.session_state.get('ws_connected', False):
+    #     # This is tricky - running asyncio like this blocks.
+    #     # A background thread or streamlit-specific websocket component is better.
+    #     # st.button("Connect Notifications", on_click=lambda: asyncio.run(connect_user_websockets(access_token)))
+    #     pass # Placeholder: Connection should ideally start automatically
+
+    # --- End WebSocket Placeholder ---
+
 
     tab2, tab3, tab4, tab5 = st.tabs(["📝 Create Request", "📋 My Requests", "👤 My Profile", "🛠️ Show Services"]) # Added Profile tab
 
@@ -99,6 +152,8 @@ def show_dashboard(): # Renamed back from user_interface
                             response = session.post("http://localhost:8000/requests", json=data)
                             if response.status_code == 200 or response.status_code == 201:
                                 st.success("✅ Request created successfully! Check the 'My Requests' tab.")
+                                # Simulate notification (in real app, backend sends this via WS)
+                                # st.session_state.new_notification = "New request created!"
                                 # Consider if rerun is needed or just clear form
                             else:
                                 handle_api_error(response.raise_for_status(), "create service request") # Use handler
@@ -113,6 +168,7 @@ def show_dashboard(): # Renamed back from user_interface
 
 
     with tab3:
+        st.subheader("My Service Requests")
         try:
             response = session.get("http://localhost:8000/myrequests")  # Requires JWT
             response.raise_for_status() # Raise HTTPError for bad responses
@@ -121,15 +177,16 @@ def show_dashboard(): # Renamed back from user_interface
             if my_requests_data:
                 df = pd.DataFrame(my_requests_data)
                 # Select and rename columns for better readability
+                # Adjusted columns based on the new multi-quote system
                 display_cols = {
                     'request_id': 'ID',
                     'service_id': 'Service ID', # Consider joining service name later
                     'status': 'Status',
                     'description': 'Description',
-                    'user_quoted_price': 'Your Price',
-                    'worker_quoted_price': 'Worker Price',
-                    'final_price': 'Final Price',
-                    'worker_comments': 'Worker Comments',
+                    'user_quoted_price': 'Your Initial Price', # Renamed for clarity
+                    # 'worker_quoted_price': 'Worker Price', # Removed - now multiple quotes
+                    # 'final_price': 'Final Price', # Removed - determined by accepted quote
+                    # 'worker_comments': 'Worker Comments', # Removed - now per quote
                     'created_at': 'Created',
                     'updated_at': 'Last Updated'
                 }
@@ -137,6 +194,10 @@ def show_dashboard(): # Renamed back from user_interface
                 for col in display_cols.keys():
                     if col not in df.columns:
                         df[col] = None
+                # Add quotes column if missing (will be list or None)
+                if 'quotes' not in df.columns:
+                    df['quotes'] = None
+
 
                 df_display = df[list(display_cols.keys())].copy()
                 df_display.rename(columns=display_cols, inplace=True)
@@ -146,8 +207,8 @@ def show_dashboard(): # Renamed back from user_interface
                 df_display['Last Updated'] = df_display['Last Updated'].apply(format_datetime)
 
                 # Format price columns
-                for price_col in ['Your Price', 'Worker Price', 'Final Price']:
-                    df_display[price_col] = df_display[price_col].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
+                # Only format user's initial price here
+                df_display['Your Initial Price'] = df_display['Your Initial Price'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
 
                 # Function to apply color based on status
                 def style_status(status):
@@ -174,68 +235,110 @@ def show_dashboard(): # Renamed back from user_interface
                 )
 
                 st.divider()
-                st.subheader("Request Actions")
+                st.subheader("Manage Requests & View Quotes")
 
-                # Iterate through requests to provide actions
+                # Iterate through requests to provide actions and display quotes
                 for index, req in df.iterrows():
                     req_id = req['request_id']
                     status = req['status']
-                    user_price = req['user_quoted_price']
-                    worker_price = req['worker_quoted_price']
-                    can_quote = status in ['pending', 'negotiating']
-                    can_agree = status == 'negotiating' and user_price is not None and worker_price is not None and user_price == worker_price
+                    user_price = req['user_quoted_price'] # User's initial price
+                    # Check if quotes exist and is a list - REMOVED - We will fetch quotes explicitly now
+                    # quotes = req.get('quotes') if isinstance(req.get('quotes'), list) else []
 
-                    # Use an expander for actions on pending/negotiating requests
-                    if can_quote or can_agree:
-                        with st.expander(f"Actions for Request ID: {req_id} (Status: {status.upper()})"):
-                            st.write(f"**Description:** {req.get('description', 'N/A')}")
-                            st.write(f"**Your Current Quote:** {f'${user_price:.2f}' if user_price else 'Not set'}")
-                            st.write(f"**Worker's Current Quote:** {f'${worker_price:.2f}' if worker_price else 'Not set'}")
-                            if req.get('worker_comments'):
-                                st.info(f"**Worker Comments:** {req['worker_comments']}")
+                    # Expander for each request
+                    with st.expander(f"Details for Request ID: {req_id} (Status: {status.upper()})"):
+                        st.write(f"**Description:** {req.get('description', 'N/A')}")
+                        st.write(f"**Your Initial Price:** {f'${user_price:.2f}' if user_price else 'Not set'}")
 
-                            # --- User Quote/Update Price Form ---
-                            if can_quote:
-                                with st.form(f"quote_form_{req_id}", clear_on_submit=False):
-                                    new_price = st.number_input(
-                                        "Set/Update Your Price Quote",
-                                        min_value=0.01,
-                                        value=float(user_price) if user_price else 10.0, # Sensible default or current price
-                                        format="%.2f",
-                                        key=f"price_input_{req_id}"
-                                    )
-                                    quote_submitted = st.form_submit_button("Submit/Update My Price")
-                                    if quote_submitted:
-                                        try:
-                                            quote_resp = session.put(
-                                                f"http://localhost:8000/requests/{req_id}/quote",
-                                                json={"price": new_price}
-                                            )
-                                            quote_resp.raise_for_status()
-                                            st.success(f"Price updated for request {req_id}!")
-                                            st.rerun() # Rerun to refresh this tab's data
-                                        except requests.exceptions.RequestException as e:
-                                            handle_api_error(e, f"update price for request {req_id}")
-                                        except Exception as e:
-                                            st.error(f"An unexpected error occurred: {e}")
+                        # Display Quotes Section
+                        st.markdown("**Received Quotes:**")
+                        quotes = [] # Initialize empty list for quotes
+                        fetch_error = None
+                        # Fetch quotes only if the request is in a state where quotes are relevant
+                        if status in ['pending', 'quoted']:
+                            try:
+                                quotes_resp = session.get(f"http://localhost:8000/requests/{req_id}/quotes")
+                                quotes_resp.raise_for_status()
+                                quotes = quotes_resp.json() # Get quotes data from the dedicated endpoint
+                            except requests.exceptions.RequestException as e:
+                                fetch_error = e # Store error to display
+                            except Exception as e:
+                                fetch_error = e # Store unexpected errors too
 
-                            # --- User Agree Price Button ---
-                            if can_agree:
-                                st.write("---") # Separator
-                                if st.button(f"Agree to Price (${user_price:.2f}) for Request {req_id}", key=f"agree_btn_{req_id}", type="primary"):
-                                    try:
-                                        agree_resp = session.put(f"http://localhost:8000/requests/{req_id}/agree")
-                                        agree_resp.raise_for_status()
-                                        st.success(f"Price agreed for request {req_id}! Status updated.")
-                                        st.rerun() # Rerun to refresh this tab's data
-                                    except requests.exceptions.RequestException as e:
-                                        handle_api_error(e, f"agree to price for request {req_id}")
-                                    except Exception as e:
-                                        st.error(f"An unexpected error occurred: {e}")
-                            elif status == 'negotiating' and user_price is not None and worker_price is not None and user_price != worker_price:
-                                st.warning("Prices do not match. Cannot agree yet.")
-                            elif status == 'negotiating' and (user_price is None or worker_price is None):
-                                 st.warning("Both parties must quote a price before agreement is possible.")
+                        if fetch_error:
+                            st.error(f"Could not load quotes for request {req_id}: {fetch_error}")
+                        elif status in ['pending', 'quoted'] and quotes: # Show quotes if request is pending/quoted and quotes exist
+                            for quote in quotes:
+                                quote_id = quote.get('quote_id')
+                                worker_id = quote.get('worker_id')
+                                # Use worker_username directly from the fetched quote data
+                                worker_username = quote.get('worker_username', f'Worker {worker_id}')
+                                quote_price = quote.get('worker_quoted_price') # Adjusted key name based on QuoteResponseForUser
+                                quote_comments = quote.get('worker_comments', 'No comments') # Adjusted key name
+                                quote_created = format_datetime(quote.get('created_at'))
+
+                                quote_col1, quote_col2 = st.columns([3, 1]) # Column for details and button
+                                with quote_col1:
+                                    # Ensure quote_price is not None before formatting
+                                    price_display = f"${quote_price:.2f}" if quote_price is not None else "N/A"
+                                    st.markdown(f"- **{worker_username}**: {price_display} ({quote_created})")
+                                    st.caption(f"> {quote_comments}")
+                                with quote_col2:
+                                    # Add Accept button for each quote if request is pending/quoted
+                                    if status in ['pending', 'quoted'] and quote_id:
+                                        if st.button(f"Accept Quote {quote_id}", key=f"accept_quote_{req_id}_{quote_id}", type="primary"):
+                                            try:
+                                                # Assumes backend endpoint: POST /requests/{req_id}/accept_quote/{quote_id}
+                                                accept_resp = session.post(f"http://localhost:8000/requests/{req_id}/accept_quote/{quote_id}")
+                                                accept_resp.raise_for_status()
+                                                st.success(f"Quote {quote_id} from {worker_username} accepted for request {req_id}! Status updated.")
+                                                # Simulate notification (backend would send this)
+                                                # st.session_state.new_notification = f"Quote accepted for request {req_id}!"
+                                                st.rerun()
+                                            except requests.exceptions.RequestException as e:
+                                                handle_api_error(e, f"accept quote {quote_id} for request {req_id}")
+                                            except Exception as e:
+                                                st.error(f"An unexpected error occurred: {e}")
+                                st.markdown("---") # Separator between quotes
+                        elif status in ['pending', 'quoted'] and not quotes and not fetch_error:
+                            st.info("No quotes received yet.")
+                        elif status not in ['pending', 'quoted']:
+                             st.info(f"Request is in '{status}' status. Quotes are not applicable or viewable here.")
+                        # Removed the final 'else' as fetch_error covers issues
+
+                        # --- User Quote/Update Price Form (Keep or Remove?) ---
+                        # This might be less relevant now. Keeping it allows users to set an initial budget.
+                        # Workers will quote independently regardless.
+                        if status in ['pending', 'quoted']: # Allow updating initial price if still pending/quoted
+                             st.markdown("**Update Your Initial Price (Optional):**")
+                             with st.form(f"quote_form_{req_id}", clear_on_submit=False):
+                                 new_price = st.number_input(
+                                     "Set/Update Your Initial Price",
+                                     min_value=0.01,
+                                     value=float(user_price) if user_price else 10.0, # Sensible default or current price
+                                     format="%.2f",
+                                     key=f"price_input_{req_id}"
+                                 )
+                                 quote_submitted = st.form_submit_button("Update My Initial Price")
+                                 if quote_submitted:
+                                     try:
+                                         # Endpoint might need adjustment if backend logic changed
+                                         quote_resp = session.put(
+                                             f"http://localhost:8000/requests/{req_id}/quote",
+                                             json={"price": new_price} # Assuming this updates user_quoted_price
+                                         )
+                                         quote_resp.raise_for_status()
+                                         st.success(f"Initial price updated for request {req_id}!")
+                                         # Simulate notification (backend might send this)
+                                         # st.session_state.new_notification = f"Price updated for request {req_id}!"
+                                         st.rerun() # Rerun to refresh this tab's data
+                                     except requests.exceptions.RequestException as e:
+                                         handle_api_error(e, f"update initial price for request {req_id}")
+                                     except Exception as e:
+                                         st.error(f"An unexpected error occurred: {e}")
+
+                        # --- Remove Old Agree Logic ---
+                        # The old can_agree logic and associated buttons are removed as acceptance is now per-quote.
 
             else:
                 st.info("ℹ️ You haven't created any service requests yet.")

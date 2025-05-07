@@ -45,7 +45,7 @@ def signup(user_data: UserDetails, db: Session = Depends(get_db)):
     return {"message": f"User {new_user.username} created successfully", "access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user_obj = db.query(User).filter(User.username == form_data.username).first()
     if not user_obj:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
@@ -53,13 +53,17 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not verify_password(form_data.password, user_obj.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
-    access_token_expires = timedelta(minutes=30)
-    access_token = create_access_token(
-        data={"sub": user_obj.username, "id": user_obj.user_id},
-        expires_delta=access_token_expires
-    )
+    # Create the token with role information
+    payload = {
+        "id": user_obj.user_id,
+        "username": user_obj.username,
+        "role": "user"  # Set the role explicitly
+    }
 
-    return {"access_token": access_token, "token_type": "bearer", "user_id": user_obj.user_id, "username": user_obj.username}
+    # Generate token
+    access_token = create_access_token(data=payload)
+
+    return {"access_token": access_token, "token_type": "bearer", "role": "user", "username": user_obj.username, "id": user_obj.user_id}
 
 @router.get("/profile")
 def get_profile(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):

@@ -31,9 +31,11 @@ class sRequest(Base):
 
     request_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    # worker_id is now only set AFTER a quote is accepted
     worker_id = Column(Integer, ForeignKey("workers.worker_id"), nullable=True)
     service_id = Column(Integer, ForeignKey("services.service_id"), nullable=False)
     user_location_id = Column(Integer, ForeignKey("user_locations.location_id"), nullable=False)
+    # Status remains pending during bidding, changes to accepted upon user choice
     status = Column(Enum(RequestStatus), default=RequestStatus.pending, nullable=False) # Use Enum
     description = Column(Text, nullable=True)
     urgency_level = Column(String(50), nullable=True)
@@ -41,17 +43,42 @@ class sRequest(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False) # Made non-nullable, added server_default
 
-    # --- New Pricing and Negotiation Fields ---
-    user_quoted_price = Column(Float, nullable=True)
-    worker_quoted_price = Column(Float, nullable=True)
-    final_price = Column(Float, nullable=True)
-    user_price_agreed = Column(Boolean, default=False, nullable=False)
-    worker_price_agreed = Column(Boolean, default=False, nullable=False)
-    worker_comments = Column(Text, nullable=True) # Comments from worker during negotiation/rejection
+    # --- User's initial price indication (Optional) ---
+    user_quoted_price = Column(Float, nullable=True) # User's initial budget/offer
 
-    # Relationship to easily get location details
+    # --- Fields moved to RequestQuote or implicit ---
+    # worker_quoted_price = Column(Float, nullable=True) # MOVED to RequestQuote
+    # worker_comments = Column(Text, nullable=True) # MOVED to RequestQuote
+    # user_price_agreed = Column(Boolean, default=False, nullable=False) # REMOVED (implicit on accept)
+    # worker_price_agreed = Column(Boolean, default=False, nullable=False) # REMOVED (implicit on accept)
+
+    # --- Final agreed price (from accepted quote) ---
+    final_price = Column(Float, nullable=True)
+
+    # Relationships
+    user = relationship("User") # Add relationship to User
     user_location = relationship("UserLocation")
     service = relationship("Service") # Add relationship to Service
+    worker = relationship("Worker") # Relationship to the assigned worker (once accepted)
+    # Relationship to get all quotes for this request
+    quotes = relationship("RequestQuote", back_populates="request", cascade="all, delete-orphan")
+
+# New table to store quotes from multiple workers for one request
+class RequestQuote(Base):
+    __tablename__ = "request_quotes"
+
+    quote_id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("requests.request_id"), nullable=False)
+    worker_id = Column(Integer, ForeignKey("workers.worker_id"), nullable=False)
+    worker_quoted_price = Column(Float, nullable=False)
+    worker_comments = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    request = relationship("sRequest", back_populates="quotes")
+    worker = relationship("Worker", back_populates="quotes")
+
 
 class Worker(Base):
     __tablename__ = "workers"
@@ -73,6 +100,8 @@ class Worker(Base):
         secondary=worker_service_categories_table,
         back_populates="workers"
     )
+    # Relationship to all quotes submitted by this worker
+    quotes = relationship("RequestQuote", back_populates="worker")
 
 class UserLocation(Base):
     __tablename__ = "user_locations"
@@ -91,6 +120,11 @@ class User(Base):
     mobile = Column(String(20), nullable=False)
     password = Column(String(255), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationship to requests created by this user
+    requests = relationship("sRequest", back_populates="user")
+    # Relationship to locations owned by this user
+    locations = relationship("UserLocation") # Add backref if needed
 
 class ServiceCategory(Base):
     __tablename__ = "service_categories"

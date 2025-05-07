@@ -7,6 +7,8 @@ from routes import hello, user_request, user_authentication, user_view_requests,
 from routes import worker_authentication, worker_view_all_open_requests, worker_view_my_requests, worker_complete_cancel_request, worker_quote_agree
 from routes import worker_notifications, admin_authentication, admin_management
 from routes import user_profile_management
+# Import the new user notifications router
+from routes import user_notifications
 import models
 import os
 import dotenv
@@ -45,6 +47,7 @@ app.include_router(user_authentication.router)
 app.include_router(user_view_requests.router)
 app.include_router(user_view_services.router)
 app.include_router(user_profile_management.router) # Group user routes
+app.include_router(user_notifications.router) # Add user notifications router
 
 app.include_router(worker_authentication.router)
 app.include_router(worker_view_all_open_requests.router)

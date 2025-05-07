@@ -5,6 +5,9 @@ from datetime import datetime
 import requests
 import json
 from typing import Optional, Dict # Import Optional, Dict
+import asyncio # Import asyncio for potential async operations with websockets
+# Placeholder for a WebSocket client library (e.g., streamlit_ws_client or similar)
+# from streamlit_ws_client import ws_client
 
 # Helper function to format datetime (same as admin_main)
 def format_datetime(dt_str):
@@ -46,7 +49,7 @@ def style_status(status):
         return '' # Default style
 
 # Function to fetch service categories (similar to register.py)
-@st.cache_data(ttl=300) # Cache for 5 minutes
+@st.cache_data(ttl=30) # Cache for 5 minutes
 def fetch_service_categories() -> Dict[str, int]:
     try:
         response = session.get("http://localhost:8000/service-categories")
@@ -60,21 +63,72 @@ def fetch_service_categories() -> Dict[str, int]:
 
 # Function to display the worker dashboard
 def show_dashboard():
+    # Check if the current user has the Worker role
+    if st.session_state.get("role") != "Worker":
+        st.error("Access denied: This page is only accessible to workers.")
+        # Return early to prevent showing the content
+        return
+
     user_info = st.session_state.get("user_info", {})
+    worker_id = user_info.get("id") # Get worker ID for notifications
     st.write(f"Welcome, {user_info.get('username', 'Worker')}!")
     service_categories_map = fetch_service_categories()
     # Create reverse map for displaying names from IDs
     category_id_to_name_map = {v: k for k, v in service_categories_map.items()}
+
+    # --- WebSocket Connection & Notification Display ---
+    # Display toast notifications if any exist in session state
+    # This assumes a background process (WebSocket listener) updates this state.
+    if 'new_notification' in st.session_state and st.session_state.new_notification:
+        st.toast(st.session_state.new_notification, icon="🔔")
+        st.session_state.new_notification = None # Clear notification after showing
+
+    # --- Example WebSocket Connection Logic (Placeholder) ---
+    # This needs a robust implementation (threading/asyncio).
+    # The browser should automatically send the session cookie if the WS
+    # connection is to the same origin (http://localhost:8000).
+    #
+    # async def connect_worker_websockets():
+    #     uri = "ws://localhost:8000/worker/notifications" # No token needed, uses session cookie
+    #     try:
+    #         # If using 'websockets' library, might need to manually pass cookies
+    #         # cookie_header = session.cookies.get_dict() # Get cookies from requests session
+    #         # headers = {'Cookie': '; '.join([f'{k}={v}' for k, v in cookie_header.items()])}
+    #         # async with websockets.connect(uri, extra_headers=headers) as websocket:
+    #         async with websockets.connect(uri) as websocket: # Try without manual cookies first
+    #             st.session_state.ws_connected = True
+    #             print(f"Worker {worker_id} WebSocket connected.")
+    #             while True:
+    #                 message = await websocket.recv()
+    #                 data = json.loads(message)
+    #                 st.session_state.new_notification = data.get('message', 'New notification received!')
+    #                 st.experimental_rerun()
+    #     except Exception as e:
+    #         print(f"Worker WebSocket error: {e}")
+    #         st.session_state.ws_connected = False
+    #     finally:
+    #         print(f"Worker WebSocket disconnected.")
+    #         st.session_state.ws_connected = False
+
+    # # Placeholder: Connection should ideally start automatically on login/page load
+    # if not st.session_state.get('ws_connected', False):
+    #      # Needs proper async/thread handling
+    #      # st.button("Connect Notifications", on_click=lambda: asyncio.run(connect_worker_websockets()))
+    #      pass
+
+    # --- End WebSocket Placeholder ---
+
 
     # Add "Create Service" tab
     tab_open, tab_active, tab_create_service, tab_history, tab_profile = st.tabs([
         "📢 Open Requests", "⚡ My Active Requests", "➕ Create Service", "📜 History", "⚙️ Profile"
     ])
 
-    # --- Tab 1: Open Requests (Pending) ---
+    # --- Tab 1: Open Requests (Pending/Quoted) ---
     with tab_open:
-        st.subheader("Available Service Requests (Nearby & Pending)")
+        st.subheader("Available Service Requests (Nearby & Open)") # Renamed slightly
         try:
+            # Endpoint might return 'pending' and 'quoted' requests
             response = session.get("http://localhost:8000/worker/openrequests")
             response.raise_for_status()
             open_requests = response.json()
@@ -106,10 +160,11 @@ def show_dashboard():
 
                 st.dataframe(df_open_display, use_container_width=True, hide_index=True)
 
-                # --- Quote Price for Open Request ---
+                # --- Submit Quote for Open Request --- # Renamed section
                 st.divider()
-                st.subheader("Quote Price for a Request")
-                st.caption("Submitting a quote will assign the request to you and change its status to 'Negotiating'.")
+                st.subheader("Submit Quote for a Request") # Renamed
+                # Removed caption about claiming request
+                st.caption("Submit your price and comments for an open request.")
 
                 open_request_ids = [req['request_id'] for req in open_requests]
                 selected_request_id_quote = st.selectbox(
@@ -137,7 +192,8 @@ def show_dashboard():
                                 "Comments (Optional)",
                                 key=f"worker_comments_open_{selected_request_id_quote}"
                             )
-                            quote_submitted = st.form_submit_button("Submit Quote & Claim Request", type="primary")
+                            # Changed button text
+                            quote_submitted = st.form_submit_button("Submit Quote", type="primary")
 
                             if quote_submitted:
                                 payload = {
@@ -145,12 +201,18 @@ def show_dashboard():
                                     "comments": worker_comments if worker_comments else None
                                 }
                                 try:
+                                    # --- IMPORTANT: Corrected backend endpoint ---
+                                    # Use PUT and the singular '/quote' path
                                     quote_resp = session.put(
-                                        f"http://localhost:8000/worker/requests/{selected_request_id_quote}/quote",
+                                        f"http://localhost:8000/worker/requests/{selected_request_id_quote}/quote", # Changed POST to PUT and path to /quote
                                         json=payload
                                     )
+                                    # --- End of Correction ---
                                     quote_resp.raise_for_status()
-                                    st.success(f"Quote submitted for request {selected_request_id_quote}! It's now assigned to you.")
+                                    # Updated success message
+                                    st.success(f"Quote submitted successfully for request {selected_request_id_quote}!")
+                                    # Simulate notification - REMOVE/COMMENT OUT - Backend handles notifying the user
+                                    # st.session_state.new_notification = f"Quote submitted for Request {selected_request_id_quote}."
                                     st.rerun()
                                 except requests.exceptions.RequestException as e:
                                     handle_api_error(e, f"submit quote for request {selected_request_id_quote}")
@@ -178,16 +240,18 @@ def show_dashboard():
         except Exception as e:
             st.error(f"An unexpected error occurred while loading open requests: {e}")
 
-    # --- Tab 2: My Active Requests (Negotiating, Accepted, InProgress) ---
+    # --- Tab 2: My Active Requests (Accepted, InProgress) --- # Renamed slightly
     with tab_active:
-        st.subheader("Requests Assigned To You (Negotiating, Accepted, In Progress)")
+        # Updated subheader text
+        st.subheader("Your Accepted Requests (Accepted, In Progress)")
         try:
+            # This endpoint should now ideally return requests where the worker's quote was accepted
             response = session.get("http://localhost:8000/worker/myrequests")
             response.raise_for_status()
             my_requests = response.json()
 
-            # Filter for active statuses
-            active_statuses = ['negotiating', 'accepted', 'inprogress']
+            # Filter for statuses AFTER acceptance by user
+            active_statuses = ['accepted', 'inprogress']
             active_requests = [req for req in my_requests if req.get('status') in active_statuses]
 
             if active_requests:
@@ -196,30 +260,33 @@ def show_dashboard():
                 df_active['created_at'] = df_active['created_at'].apply(format_datetime)
                 df_active['updated_at'] = df_active['updated_at'].apply(format_datetime)
 
-                # Ensure price/comment/address columns exist
+                # Ensure price/comment/address columns exist (final_price is relevant here)
                 cols_to_check = ['user_quoted_price', 'worker_quoted_price', 'final_price', 'worker_comments', 'user_address', 'user_pincode']
                 for col in cols_to_check:
                     if col not in df_active.columns:
-                        df_active[col] = None
+                        df_active[col] = None # worker_quoted_price/comments might be from the accepted quote now
 
+                # Adjust columns displayed - worker_quoted_price is now likely the final_price
                 df_active_display = df_active[[
                     'request_id', 'status', 'description', 'urgency_level',
-                    'user_address', 'user_pincode', # Added address
-                    'user_quoted_price', 'worker_quoted_price', 'final_price', 'worker_comments',
+                    'user_address', 'user_pincode',
+                    # 'user_quoted_price', # Less relevant after acceptance
+                    'final_price', # This should be the accepted price
+                    'worker_comments', # Comments from the accepted quote
                     'created_at', 'updated_at'
                 ]].copy()
                 df_active_display.rename(columns={
                     'request_id': 'ID', 'status': 'Status', 'description': 'Description',
                     'urgency_level': 'Urgency',
-                    'user_address': 'User Address', 'user_pincode': 'User Pincode', # Renamed
-                    'user_quoted_price': 'User Price',
-                    'worker_quoted_price': 'Your Price', 'final_price': 'Final Price',
-                    'worker_comments': 'Your Comments', 'created_at': 'Created', 'updated_at': 'Last Update'
+                    'user_address': 'User Address', 'user_pincode': 'User Pincode',
+                    # 'user_quoted_price': 'User Initial Price',
+                    'final_price': 'Agreed Price', # Renamed
+                    'worker_comments': 'Your Accepted Comments', # Renamed
+                    'created_at': 'Created', 'updated_at': 'Last Update'
                 }, inplace=True)
 
-                # Format prices
-                for price_col in ['User Price', 'Your Price', 'Final Price']:
-                     df_active_display[price_col] = df_active_display[price_col].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
+                # Format prices (only Agreed Price now)
+                df_active_display['Agreed Price'] = df_active_display['Agreed Price'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
 
                 # Display styled dataframe
                 st.dataframe(
@@ -230,7 +297,7 @@ def show_dashboard():
 
                 # --- Actions for Active Requests ---
                 st.divider()
-                st.subheader("Manage Active Request")
+                st.subheader("Manage Accepted Request") # Renamed
 
                 active_request_ids = [req['request_id'] for req in active_requests]
                 selected_request_id_manage = st.selectbox(
@@ -246,93 +313,29 @@ def show_dashboard():
                     if req:
                         req_id = req['request_id']
                         status = req['status']
-                        user_price = req['user_quoted_price']
-                        worker_price = req['worker_quoted_price']
-                        can_update_quote = status == 'negotiating'
-                        can_agree = status == 'negotiating' and user_price is not None and worker_price is not None and user_price == worker_price
+                        # user_price = req['user_quoted_price'] # Less relevant
+                        # worker_price = req['worker_quoted_price'] # Use final_price
+                        final_price = req['final_price']
+                        # Removed negotiation/agreement related flags
+                        # can_update_quote = status == 'negotiating'
+                        # can_agree = status == 'negotiating' and user_price is not None and worker_price is not None and user_price == worker_price
                         can_complete_cancel = status in ['accepted', 'inprogress']
 
                         st.write(f"**Details for Request {req_id} (Status: {status.upper()})**")
                         st.write(f"**Description:** {req.get('description', 'N/A')}")
-                        st.write(f"**User's Price:** {f'${user_price:.2f}' if user_price else 'Not set'}")
-                        st.write(f"**Your Price:** {f'${worker_price:.2f}' if worker_price else 'Not set'}")
-                        st.write(f"**User Address:** {req.get('user_address', 'N/A')} ({req.get('user_pincode', 'N/A')})") # Display address
+                        # st.write(f"**User's Price:** {f'${user_price:.2f}' if user_price else 'Not set'}") # Removed
+                        st.write(f"**Agreed Price:** {f'${final_price:.2f}' if final_price else 'N/A'}") # Show agreed price
+                        st.write(f"**User Address:** {req.get('user_address', 'N/A')} ({req.get('user_pincode', 'N/A')})")
                         if req.get('worker_comments'):
-                            st.info(f"**Your Comments:** {req['worker_comments']}")
+                            st.info(f"**Your Accepted Comments:** {req['worker_comments']}") # Show comments from accepted quote
 
-                        # --- Update Quote / Agree (for Negotiating) ---
-                        if status == 'negotiating':
-                            with st.expander("Update Quote / Agree Price"):
-                                # Update Quote Form
-                                with st.form(f"update_quote_form_{req_id}", clear_on_submit=False):
-                                    new_worker_price = st.number_input(
-                                        "Update Your Price Quote",
-                                        min_value=0.01,
-                                        value=float(worker_price) if worker_price else 10.0,
-                                        format="%.2f",
-                                        key=f"update_worker_price_{req_id}"
-                                    )
-                                    new_worker_comments = st.text_area(
-                                        "Update Comments (Optional)",
-                                        value=req.get('worker_comments', ''),
-                                        key=f"update_worker_comments_{req_id}"
-                                    )
-                                    update_quote_submitted = st.form_submit_button("Update My Quote")
-                                    if update_quote_submitted:
-                                        payload = {
-                                            "price": new_worker_price,
-                                            "comments": new_worker_comments if new_worker_comments else None
-                                        }
-                                        try:
-                                            update_resp = session.put(
-                                                f"http://localhost:8000/worker/requests/{req_id}/quote",
-                                                json=payload
-                                            )
-                                            update_resp.raise_for_status()
-                                            st.success(f"Quote updated for request {req_id}!")
-                                            st.rerun()
-                                        except requests.exceptions.RequestException as e:
-                                            handle_api_error(e, f"update quote for request {req_id}")
-                                        except Exception as e:
-                                            st.error(f"An unexpected error occurred: {e}")
+                        # --- REMOVED Update Quote / Agree (for Negotiating) ---
+                        # if status == 'negotiating':
+                        #    ... (Removed expander and its contents) ...
 
-                                # Agree Button
-                                if can_agree:
-                                    st.write("---")
-                                    if st.button(f"Agree to Price (${user_price:.2f}) for Request {req_id}", key=f"worker_agree_btn_{req_id}", type="primary"):
-                                        try:
-                                            agree_resp = session.put(f"http://localhost:8000/worker/requests/{req_id}/agree")
-                                            agree_resp.raise_for_status()
-                                            st.success(f"Price agreed for request {req_id}! Status updated.")
-                                            st.rerun()
-                                        except requests.exceptions.RequestException as e:
-                                            handle_api_error(e, f"agree to price for request {req_id}")
-                                        except Exception as e:
-                                            st.error(f"An unexpected error occurred: {e}")
-                                elif user_price is not None and worker_price is not None and user_price != worker_price:
-                                    st.warning("Prices do not match. Cannot agree yet.")
-                                elif user_price is None or worker_price is None:
-                                    st.warning("Both parties must quote a price before agreement is possible.")
-
-                        # --- Complete/Cancel (for Accepted/InProgress) ---
+                        # --- Complete/Cancel/Start (for Accepted/InProgress) --- # Keep this section
                         if can_complete_cancel:
-                             with st.expander("Mark Complete / Cancel"):
-                                if st.button(f"✅ Mark Complete {req_id}", key=f"complete_request_btn_{req_id}", use_container_width=True):
-                                    try:
-                                        # Determine target status (inprogress -> completed, accepted -> completed)
-                                        target_status = "completed"
-                                        modify_resp = session.patch(
-                                            "http://localhost:8000/worker/modifyrequest",
-                                            json={"request_id": req_id, "status": target_status}
-                                        )
-                                        modify_resp.raise_for_status()
-                                        st.success(f"Request {req_id} marked as completed!")
-                                        st.rerun()
-                                    except requests.exceptions.RequestException as e:
-                                        handle_api_error(e, f"complete request {req_id}")
-                                    except Exception as e:
-                                        st.error(f"An unexpected error occurred: {e}")
-
+                             with st.expander("Update Status (Complete / Start / Cancel)"): # Renamed expander
                                 # Allow starting work if 'accepted'
                                 if status == 'accepted':
                                      if st.button(f"▶️ Start Work {req_id}", key=f"start_request_btn_{req_id}", use_container_width=True):
@@ -343,29 +346,56 @@ def show_dashboard():
                                             )
                                             modify_resp.raise_for_status()
                                             st.success(f"Request {req_id} status set to In Progress!")
+                                            # Simulate notification
+                                            st.session_state.new_notification = f"Work started for Request {req_id}."
                                             st.rerun()
                                         except requests.exceptions.RequestException as e:
                                             handle_api_error(e, f"start work for request {req_id}")
                                         except Exception as e:
                                             st.error(f"An unexpected error occurred: {e}")
 
-                                if st.button(f"❌ Cancel Request {req_id}", key=f"cancel_request_btn_{req_id}", type="secondary", use_container_width=True):
-                                    try:
-                                        modify_resp = session.patch(
-                                            "http://localhost:8000/worker/modifyrequest",
-                                            json={"request_id": req_id, "status": "cancelled"}
-                                        )
-                                        modify_resp.raise_for_status()
-                                        st.success(f"Request {req_id} cancelled!")
-                                        st.rerun()
-                                    except requests.exceptions.RequestException as e:
-                                        handle_api_error(e, f"cancel request {req_id}")
-                                    except Exception as e:
-                                        st.error(f"An unexpected error occurred: {e}")
+                                # Allow completing work if 'accepted' or 'inprogress'
+                                if status in ['accepted', 'inprogress']:
+                                    if st.button(f"✅ Mark Complete {req_id}", key=f"complete_request_btn_{req_id}", use_container_width=True):
+                                        try:
+                                            target_status = "completed"
+                                            modify_resp = session.patch(
+                                                "http://localhost:8000/worker/modifyrequest",
+                                                json={"request_id": req_id, "status": target_status}
+                                            )
+                                            modify_resp.raise_for_status()
+                                            st.success(f"Request {req_id} marked as completed!")
+                                            # Simulate notification
+                                            st.session_state.new_notification = f"Request {req_id} marked as completed."
+                                            st.rerun()
+                                        except requests.exceptions.RequestException as e:
+                                            handle_api_error(e, f"complete request {req_id}")
+                                        except Exception as e:
+                                            st.error(f"An unexpected error occurred: {e}")
+
+                                # Allow cancelling if 'accepted' or 'inprogress'
+                                if status in ['accepted', 'inprogress']:
+                                    if st.button(f"❌ Cancel Request {req_id}", key=f"cancel_request_btn_{req_id}", type="secondary", use_container_width=True):
+                                        try:
+                                            # Note: Backend might need logic to handle cancellation (e.g., reopen request?)
+                                            modify_resp = session.patch(
+                                                "http://localhost:8000/worker/modifyrequest",
+                                                json={"request_id": req_id, "status": "cancelled"}
+                                            )
+                                            modify_resp.raise_for_status()
+                                            st.success(f"Request {req_id} cancelled!")
+                                            # Simulate notification
+                                            st.session_state.new_notification = f"Request {req_id} cancelled by you."
+                                            st.rerun()
+                                        except requests.exceptions.RequestException as e:
+                                            handle_api_error(e, f"cancel request {req_id}")
+                                        except Exception as e:
+                                            st.error(f"An unexpected error occurred: {e}")
                     else:
                         st.error("Selected request details not found.")
             else:
-                st.info("You have no active requests currently (Negotiating, Accepted, or In Progress).")
+                # Updated info message
+                st.info("You have no accepted requests currently (Accepted or In Progress).")
 
         except requests.exceptions.RequestException as e:
             handle_api_error(e, "load your active requests")
@@ -413,6 +443,8 @@ def show_dashboard():
                             # Check for 201 Created or potentially 200 OK depending on backend implementation
                             if add_resp.status_code in [200, 201]:
                                 st.success(f"Service '{new_service_name}' submitted successfully!")
+                                # Simulate notification (backend could notify admin via WS)
+                                # st.session_state.new_notification = f"New service '{new_service_name}' suggested."
                                 # No st.rerun() needed unless you display worker-created services elsewhere
                             else:
                                 # Use handle_api_error for consistency
@@ -427,6 +459,7 @@ def show_dashboard():
         st.subheader("Completed & Cancelled Requests")
         try:
             # Reuse the fetched data if available, otherwise fetch again
+            # This endpoint should still work, returning requests assigned to the worker
             if 'my_requests' not in locals():
                 response = session.get("http://localhost:8000/worker/myrequests")
                 response.raise_for_status()
@@ -440,20 +473,20 @@ def show_dashboard():
                  df_history['created_at'] = df_history['created_at'].apply(format_datetime)
                  df_history['updated_at'] = df_history['updated_at'].apply(format_datetime)
 
-                 # Ensure final_price exists
+                 # Ensure final_price exists (should be the agreed price for completed/cancelled)
                  if 'final_price' not in df_history.columns:
                      df_history['final_price'] = None
 
                  df_history_display = df_history[[
-                     'request_id', 'status', 'description', 'final_price', 'updated_at' # Keep it concise
+                     'request_id', 'status', 'description', 'final_price', 'updated_at'
                  ]].copy()
                  df_history_display.rename(columns={
                      'request_id': 'ID', 'status': 'Final Status', 'description': 'Description',
-                     'final_price': 'Final Price', 'updated_at': 'Completed/Cancelled On'
+                     'final_price': 'Agreed Price', 'updated_at': 'Completed/Cancelled On' # Renamed price column
                  }, inplace=True)
 
                  # Format price
-                 df_history_display['Final Price'] = df_history_display['Final Price'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
+                 df_history_display['Agreed Price'] = df_history_display['Agreed Price'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
 
                  # Apply styling to the 'Final Status' column
                  st.dataframe(

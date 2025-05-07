@@ -12,7 +12,7 @@ router = APIRouter()
 # Define response model
 class RequestUserResponse(BaseModel):
     request_id: int
-    worker_id: Optional[int]
+    worker_id: Optional[int] # Assigned worker ID (after acceptance)
     service_id: int
     description: Optional[str]
     status: RequestStatus # Use Enum
@@ -21,13 +21,13 @@ class RequestUserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     user_location_id: int
-    # New fields
-    user_quoted_price: Optional[float]
-    worker_quoted_price: Optional[float]
-    final_price: Optional[float]
-    user_price_agreed: bool
-    worker_price_agreed: bool
-    worker_comments: Optional[str]
+    # Pricing fields
+    user_quoted_price: Optional[float] # User's initial budget/offer
+    # worker_quoted_price: Optional[float] # Removed (now viewable via /quotes endpoint)
+    final_price: Optional[float] # Price from accepted quote
+    # user_price_agreed: bool # Removed
+    # worker_price_agreed: bool # Removed
+    # worker_comments: Optional[str] # Removed (now viewable via /quotes endpoint)
 
     class Config:
         orm_mode = True

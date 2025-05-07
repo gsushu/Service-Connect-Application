@@ -1,5 +1,5 @@
 # filepath: d:\Other\adbms\Service-Connect-Application-main\backend\app\auth.py
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
@@ -77,3 +77,27 @@ async def get_current_user_optional(token: str | None = Depends(oauth2_scheme), 
         return await get_current_user(token, db)
     except HTTPException:
         return None
+
+# Role-based access control dependency functions
+def get_current_user_with_role_check(allowed_roles: list = ["user"]):
+    """
+    Dependency that checks if the current user has one of the allowed roles.
+    Default is to only allow regular users.
+    """
+    async def _get_user_with_role(request: Request):
+        # Get the user (this will raise HTTPException if not authenticated)
+        current_user = await get_current_user(request)
+
+        # Check if user has the required role
+        if "role" in current_user and current_user["role"] in allowed_roles:
+            return current_user
+
+        # Role not allowed
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized for this endpoint. Insufficient permissions.",
+        )
+
+    return _get_user_with_role
+
+# Example usage: Depends(get_current_user_with_role_check(["admin"]))

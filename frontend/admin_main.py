@@ -49,6 +49,12 @@ def fetch_categories():
 
 # Function to display the admin dashboard
 def show_dashboard():
+    # Check if the current user has the Admin role
+    if st.session_state.get("role") != "Admin":
+        st.error("Access denied: This page is only accessible to administrators.")
+        # Return early to prevent showing the content
+        return
+
     # Get current admin info from session state for checks
     current_admin_info = st.session_state.get("user_info", {})
     current_admin_id = current_admin_info.get("id")

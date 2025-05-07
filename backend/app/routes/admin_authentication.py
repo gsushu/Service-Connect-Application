@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from auth import get_password_hash, verify_password # Import hashing functions
 # Import the dependency to get current admin
 from routes.admin_management import get_current_admin
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -13,27 +14,26 @@ class AdminLoginDetails(BaseModel):
     username: str
     password: str
 
-@router.post("/login")
-def login(admin_auth: AdminLoginDetails, request: Request, db: Session = Depends(get_db)):
-    admin_obj = db.query(Admin).filter(Admin.username == admin_auth.username).first()
+@router.post("/admin/login")
+async def admin_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    admin_obj = db.query(Admin).filter(Admin.username == form_data.username).first()
 
     if not admin_obj:
         # Use 401 for authentication failure, avoid revealing if user exists
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
     # Verify password using hashing function
-    if not verify_password(admin_auth.password, admin_obj.password):
+    if not verify_password(form_data.password, admin_obj.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
-    # Store admin info in session
-    request.session["admin"] = {"username": admin_obj.username, "id": admin_obj.admin_id}
-
-    # Return username and id along with message
-    return {
-        "message": f"Admin {admin_obj.username} Login successful",
-        "admin_id": admin_obj.admin_id,
-        "username": admin_obj.username
+    # Create admin session
+    request.session["admin"] = {
+        "id": admin_obj.admin_id,
+        "username": admin_obj.username,
+        "role": "admin"  # Set role explicitly
     }
+
+    return {"status": "success", "role": "admin", "username": admin_obj.username, "id": admin_obj.admin_id}
 
 
 class AdminCreateDetails(BaseModel):

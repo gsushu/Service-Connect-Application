@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from dependencies import get_db
-from models import User, Worker, sRequest, Service, WorkerStatus, RequestStatus, Admin, ServiceCategory, worker_service_categories_table
+from models import User, Worker, sRequest, Service, WorkerStatus, RequestStatus, Admin, ServiceCategory, worker_service_categories_table, RequestQuote # Import RequestQuote
 from auth import get_password_hash # Import hashing function
 from pydantic import BaseModel
 from typing import List, Optional
@@ -99,7 +99,7 @@ def delete_worker(worker_id: int, db: Session = Depends(get_db)):
 class RequestAdminResponse(BaseModel): # Updated response for admin
     request_id: int
     user_id: int
-    worker_id: Optional[int]
+    worker_id: Optional[int] # Assigned worker (after acceptance)
     service_id: int
     user_location_id: int
     status: RequestStatus # Use Enum
@@ -108,13 +108,13 @@ class RequestAdminResponse(BaseModel): # Updated response for admin
     additional_notes: Optional[str]
     created_at: datetime # Use datetime
     updated_at: datetime # Use datetime
-    # New fields
-    user_quoted_price: Optional[float]
-    worker_quoted_price: Optional[float]
-    final_price: Optional[float]
-    user_price_agreed: bool
-    worker_price_agreed: bool
-    worker_comments: Optional[str]
+    # Pricing fields
+    user_quoted_price: Optional[float] # User's initial budget/offer
+    # worker_quoted_price: Optional[float] # Removed (Admin could potentially view via quotes)
+    final_price: Optional[float] # Price from accepted quote
+    # user_price_agreed: bool # Removed
+    # worker_price_agreed: bool # Removed
+    # worker_comments: Optional[str] # Removed (Admin could potentially view via quotes)
 
     class Config:
         orm_mode = True
@@ -125,11 +125,16 @@ def get_all_requests(db: Session = Depends(get_db)):
     requests = db.query(sRequest).order_by(sRequest.updated_at.desc()).all() # Order by update time
     return requests
 
+# Optional: Add endpoint for admin to view quotes for a specific request
+# @router.get("/requests/{request_id}/quotes", ...)
+# def admin_get_request_quotes(...)
+
 @router.delete("/requests/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_request(request_id: int, db: Session = Depends(get_db)):
     request_obj = db.query(sRequest).filter(sRequest.request_id == request_id).first()
     if not request_obj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    # Deleting the request should cascade delete related quotes due to cascade="all, delete-orphan" in model
     db.delete(request_obj)
     db.commit()
     return None
