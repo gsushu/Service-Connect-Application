@@ -195,7 +195,7 @@ def show_dashboard():
                         st.markdown("**Received Quotes:**")
                         quotes = [] # Initialize empty list for quotes
                         fetch_error = None
-                        if status in ['pending', 'quoted']:
+                        if status == 'pending':
                             try:
                                 quotes_resp = session.get(f"http://localhost:8000/requests/{req_id}/quotes")
                                 quotes_resp.raise_for_status()
@@ -207,7 +207,7 @@ def show_dashboard():
 
                         if fetch_error:
                             st.error(f"Could not load quotes for request {req_id}: {fetch_error}")
-                        elif status in ['pending', 'quoted'] and quotes:
+                        elif status == 'pending' and quotes:
                             for quote in quotes:
                                 quote_id = quote.get('quote_id')
                                 worker_id = quote.get('worker_id')
@@ -222,7 +222,7 @@ def show_dashboard():
                                     st.markdown(f"- **{worker_username}**: {price_display} ({quote_created})")
                                     st.caption(f"> {quote_comments}")
                                 with quote_col2:
-                                    if status in ['pending', 'quoted'] and quote_id:
+                                    if status == 'pending' and quote_id:
                                         if st.button(f"Accept Quote {quote_id}", key=f"accept_quote_{req_id}_{quote_id}", type="primary"):
                                             try:
                                                 accept_resp = session.post(f"http://localhost:8000/requests/{req_id}/accept_quote/{quote_id}")
@@ -234,12 +234,12 @@ def show_dashboard():
                                             except Exception as e:
                                                 st.error(f"An unexpected error occurred: {e}")
                                 st.markdown("---")
-                        elif status in ['pending', 'quoted'] and not quotes and not fetch_error:
+                        elif status == 'pending' and not quotes and not fetch_error:
                             st.info("No quotes received yet.")
                         elif status not in ['pending', 'quoted']:
                              st.info(f"Request is in '{status}' status. Quotes are not applicable or viewable here.")
 
-                        if status in ['pending', 'quoted']:
+                        if status == 'pending':
                              st.markdown("**Update Your Initial Price (Optional):**")
                              with st.form(f"quote_form_{req_id}", clear_on_submit=False):
                                  new_price = st.number_input(
