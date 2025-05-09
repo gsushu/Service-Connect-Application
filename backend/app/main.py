@@ -9,6 +9,8 @@ from routes import worker_notifications, admin_authentication, admin_management
 from routes import user_profile_management
 # Import the new user notifications router
 from routes import user_notifications
+from dependencies import get_db
+from models import migrate_negotiating_to_pending
 import models
 import os
 import dotenv
@@ -22,6 +24,16 @@ dotenv.load_dotenv()
 
 # --- Main FastAPI Application ---
 app = FastAPI(title="Service Connect Main API")
+
+# Run migrations on startup
+@app.on_event("startup")
+async def startup_event():
+    db = next(get_db())
+    try:
+        # Migrate existing "negotiating" status to "pending"
+        migrate_negotiating_to_pending(db)
+    finally:
+        db.close()
 
 # Get session secret key from environment variable
 SESSION_SECRET = os.getenv("SESSION_SECRET_KEY")

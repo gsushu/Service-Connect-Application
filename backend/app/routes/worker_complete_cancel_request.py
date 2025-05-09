@@ -25,10 +25,10 @@ def modify_request_status(modify_data: ModifyRequestStatus, current_worker: Work
     target_status = modify_data.status
     current_status = service_request.status
 
+    # Updated allowed transitions - removed negotiating status
     allowed_transitions = {
         RequestStatus.accepted: [RequestStatus.inprogress, RequestStatus.cancelled],
         RequestStatus.inprogress: [RequestStatus.completed, RequestStatus.cancelled],
-        RequestStatus.negotiating: [RequestStatus.cancelled]
     }
 
     if current_status not in allowed_transitions or target_status not in allowed_transitions.get(current_status, []):
@@ -36,6 +36,10 @@ def modify_request_status(modify_data: ModifyRequestStatus, current_worker: Work
              status_code=status.HTTP_400_BAD_REQUEST,
              detail=f"Cannot change status from '{current_status.value}' to '{target_status.value}'"
          )
+
+    valid_statuses = ["accepted", "inprogress", "completed", "cancelled"]
+    if target_status.value not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Status must be one of {valid_statuses}")
 
     service_request.status = target_status
     db.commit()

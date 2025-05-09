@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, Enum, Float, Boolean, Table # Added Float, Boolean, Table
-from sqlalchemy.orm import relationship # Import relationship
+from sqlalchemy.orm import relationship, Session # Added Session
 from sqlalchemy.sql import func, text
 from config import Base
 import enum
@@ -11,14 +11,13 @@ class WorkerStatus(enum.Enum):
     approved = "approved"
     rejected = "rejected"
 
-# Enum for Request Status (optional, but good practice)
+# Enum for Request Status (updated to clarify workflow)
 class RequestStatus(enum.Enum):
-    pending = "pending"
-    negotiating = "negotiating" # New status for price negotiation
-    accepted = "accepted" # Price agreed, ready for work
-    inprogress = "inprogress" # Optional: If worker explicitly starts work
-    completed = "completed"
-    cancelled = "cancelled"
+    pending = "pending"      # Initial state - open for worker quotes
+    accepted = "accepted"    # User accepted a worker's quote, worker assigned
+    inprogress = "inprogress"  # Worker has started the work
+    completed = "completed"  # Worker marked the job as completed
+    cancelled = "cancelled"  # Either user or assigned worker cancelled the request
 
 # Association Table for Worker <-> ServiceCategory
 worker_service_categories_table = Table('worker_service_categories', Base.metadata,
@@ -165,3 +164,28 @@ class Admin(Base):
     username = Column(String(100), nullable=False, unique=True)
     password = Column(String(255), nullable=False) # Consider hashing passwords in production
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+# Function to migrate existing "negotiating" status records to "pending"
+def migrate_negotiating_to_pending(db: Session):
+    """
+    This function should be called during application startup to migrate
+    any requests with 'negotiating' status to 'pending' status.
+
+    Args:
+        db: SQLAlchemy database session
+    """
+    try:
+        # Using raw SQL for this operation to handle the enum constraints
+        result = db.execute(text("""
+            UPDATE requests
+            SET status = 'pending'
+            WHERE status = 'negotiating'
+        """))
+        db.commit()
+        updated_count = result.rowcount
+        print(f"Migration: {updated_count} records updated from 'negotiating' to 'pending'")
+        return updated_count
+    except Exception as e:
+        db.rollback()
+        print(f"Error during migration: {e}")
+        return 0
